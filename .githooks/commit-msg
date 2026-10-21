@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Rejects non-conventional commits
+
+msg_file="$1"
+subject=$(grep -v '^#' "$msg_file" | grep -m1 .)
+
+case "$subject" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+types='feat|fix|hotfix|refactor|style|chore|cleanup|perf|test|docs|content'
+pattern="^($types)(\([a-z0-9._/-]+\))?!?: .+"
+
+if ! [[ "$subject" =~ $pattern ]]; then
+  {
+    echo "commit rejected: subject must be '<type>: <summary>' or '<type>(<scope>): <summary>'"
+    echo "types: ${types//|/, }"
+    echo "got:   $subject"
+  } >&2
+  exit 1
+fi

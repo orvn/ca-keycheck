@@ -1,0 +1,60 @@
+# line endings
+* text=auto eol=lf
+
+# scripts
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# lockfiles w silent diffs
+package-lock.json -diff
+yarn.lock -diff
+pnpm-lock.yaml -diff
+bun.lock -diff
+Cargo.lock -diff
+go.sum -diff
+Package.resolved -diff
+Manifest.toml -diff
+poetry.lock -diff
+uv.lock -diff
+
+# images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.svg text
+
+# fonts
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
+# media
+*.mp3 binary
+*.mp4 binary
+*.webm binary
+*.wav binary
+
+# archives
+*.zip binary
+*.gz binary
+*.tar binary
+*.pdf binary
+
+# compiled
+*.o binary
+*.a binary
+*.so binary
+*.dylib binary
+*.dll binary
+*.exe binary
+*.wasm binary
