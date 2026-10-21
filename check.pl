@@ -10,6 +10,28 @@ use strict;
 use warnings;
 use Math::BigInt;
 use IPC::Open2;
+use FindBin;
+use lib $FindBin::Bin;
+
+# color comes from Color.pm next to this script; without it, output is plain text
+BEGIN {
+    unless (eval { require Color; Color->import; 1 }) {
+        no warnings 'once';
+        *paint = *paint_err = sub { $_[1] };
+    }
+}
+
+# full private key as colon-separated bytes, $len bytes, 16 per line
+# leading zero bytes are dimmed so the tiny value stands out
+sub key_lines {
+    my ($k, $len) = @_;
+    my @bytes = unpack '(A2)*', sprintf('%0*x', 2 * $len, $k);
+    my @lines;
+    while (my @row = splice @bytes, 0, 16) {
+        push @lines, join ':', map { $_ eq '00' ? paint('faint', $_) : paint('bold red', $_) } @row;
+    }
+    return @lines;
+}
 
 # ---- domain parameters, public NIST constants, keyed by openssl's ASN1 OID name ----
 # a = p - 3 for the NIST prime curves; len = bytes per coordinate
@@ -21,6 +43,7 @@ sub curve {
         len  => $len,
         p    => $p,
         a    => $p->copy->bsub(3),
+        b    => Math::BigInt->from_hex($b),
         G    => [Math::BigInt->from_hex($Gx), Math::BigInt->from_hex($Gy)],
     };
 }
@@ -158,7 +181,7 @@ sub selftest {
     for my $k (1 .. 255) {
         die "$c->{name}: computed ${k}*G is off-curve\n" unless on_curve($c, $mult->[$k]);
     }
-    printf "selftest ok: G and all of 1*G..255*G lie on %s\n", $c->{name};
+    printf "%s G and all of 1*G..255*G lie on %s\n", paint('green', 'selftest ok:'), $c->{name};
     printf "  4*G.x = %s\n", $mult->[4][0]->to_hex;
     $c->{mult} = $mult;
 }
@@ -175,15 +198,15 @@ unless (@ARGV) {
 for my $pem (@ARGV) {
     my @certs = eval { certs_from_file($pem) };
     unless (@certs) {
-        warn "skipping: $@";
+        warn paint_err('yellow', 'skipping:') . " $@";
         next;
     }
-    print "\n$pem\n";
+    print "\n", paint('bold', $pem), "\n";
     for my $i (0 .. $#certs) {
         my $label = sprintf "  [%d] %s", $i + 1, cn_of($certs[$i]);
         my ($c, $target) = eval { point_from_cert($certs[$i]) };
         unless ($target) {
-            printf "%-50s skipped: %s", $label, $@;
+            printf "%-50s %s %s", $label, paint('yellow', 'skipped:'), $@;
             next;
         }
         my $mult = $c->{mult};
@@ -196,9 +219,12 @@ for my $pem (@ARGV) {
             }
         }
         if (defined $found) {
-            printf "%-50s %s  COMPROMISED  private scalar = %d\n", $label, $c->{name}, $found;
+            printf "%-50s %s  %s  private scalar = %d\n", $label, paint('cyan', $c->{name}),
+                paint('bold red', 'COMPROMISED'), $found;
+            printf "      private key (%d bytes):\n", $c->{len};
+            print "        $_\n" for key_lines($found, $c->{len});
         } else {
-            printf "%-50s %s  no small scalar <= 255\n", $label, $c->{name};
+            printf "%-50s %s  %s\n", $label, paint('cyan', $c->{name}), paint('green', 'no small scalar <= 255');
         }
     }
 }
