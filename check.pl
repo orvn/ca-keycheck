@@ -9,6 +9,7 @@
 use strict;
 use warnings;
 use Math::BigInt;
+use IPC::Open2;
 
 # ---- P-384 (secp384r1) domain parameters, public NIST constants ----
 my $p  = Math::BigInt->from_hex('fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff');
@@ -63,20 +64,48 @@ sub on_curve {
     return $lhs->bcmp($rhs) == 0;
 }
 
+# ---- split a PEM file into its certificates (a chain file holds several) ----
+sub certs_from_file {
+    my ($path) = @_;
+    open my $fh, '<', $path or die "cannot open $path: $!\n";
+    my $data = do { local $/; <$fh> };
+    my @certs = $data =~ /(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----)/gs;
+    die "no certificates in $path\n" unless @certs;
+    return @certs;
+}
+
+# run a shell pipeline with $input on stdin, return its stdout
+sub openssl_in {
+    my ($cmd, $input) = @_;
+    my $pid = open2(my $out, my $in, $cmd);
+    print $in $input;
+    close $in;
+    my $txt = do { local $/; <$out> };
+    waitpid $pid, 0;
+    return $txt // '';
+}
+
+sub cn_of {
+    my ($cert) = @_;
+    my $subj = openssl_in('openssl x509 -noout -subject -nameopt multiline 2>/dev/null', $cert);
+    my ($cn) = $subj =~ /commonName\s*=\s*(.+)/;
+    return $cn // '?';
+}
+
 # ---- pull the uncompressed public point out of a cert via openssl ----
 # returns [x, y] BigInts from the 0x04 || X || Y encoding (97 bytes for P-384)
 sub point_from_cert {
-    my ($pem) = @_;
-    my $txt = qx(openssl x509 -in "$pem" -noout -pubkey 2>/dev/null | openssl pkey -pubin -text -noout 2>/dev/null);
-    die "openssl could not read $pem\n" unless $txt;
+    my ($cert) = @_;
+    my $txt = openssl_in('openssl x509 -noout -pubkey 2>/dev/null | openssl pkey -pubin -text -noout 2>/dev/null', $cert);
+    die "openssl could not read cert\n" unless $txt;
 
     # scrape the hex bytes under the "pub:" block
     my ($blk) = $txt =~ /pub:\s*\n(.*?)(?:ASN1 OID|NIST CURVE|\z)/s;
-    die "no public point found in $pem\n" unless $blk;
+    die "no public point found\n" unless $blk;
     (my $hex = $blk) =~ s/[^0-9a-f]//g;      # drop colons, whitespace, indentation
 
-    die "unexpected point length in $pem\n" unless length($hex) == 2 * 97;
-    die "not an uncompressed point in $pem\n" unless substr($hex, 0, 2) eq '04';
+    die "not P-384 (unexpected point length)\n" unless length($hex) == 2 * 97;
+    die "not an uncompressed point\n" unless substr($hex, 0, 2) eq '04';
     my $x = Math::BigInt->from_hex(substr($hex, 2,  96));
     my $y = Math::BigInt->from_hex(substr($hex, 98, 96));
     return [$x, $y];
@@ -112,27 +141,36 @@ my @mult = selftest();
 
 unless (@ARGV) {
     print "\nusage: $0 cert1.pem [cert2.pem ...]\n";
-    print "each cert's public point is checked against 1*G..255*G\n";
+    print "every cert in each file (chains included) is checked against 1*G..255*G\n";
     exit 0;
 }
 
 for my $pem (@ARGV) {
-    my $target = eval { point_from_cert($pem) };
-    unless ($target) {
+    my @certs = eval { certs_from_file($pem) };
+    unless (@certs) {
         warn "skipping: $@";
         next;
     }
-    my $found;
-    for my $k (1 .. 255) {
-        if ($mult[$k][0]->bcmp($target->[0]) == 0
-         && $mult[$k][1]->bcmp($target->[1]) == 0) {
-            $found = $k;
-            last;
+    print "\n$pem\n";
+    for my $i (0 .. $#certs) {
+        my $label = sprintf "  [%d] %s", $i + 1, cn_of($certs[$i]);
+        my $target = eval { point_from_cert($certs[$i]) };
+        unless ($target) {
+            printf "%-50s skipped: %s", $label, $@;
+            next;
         }
-    }
-    if (defined $found) {
-        printf "%-40s COMPROMISED  private scalar = %d\n", $pem, $found;
-    } else {
-        printf "%-40s no small scalar <= 255\n", $pem;
+        my $found;
+        for my $k (1 .. 255) {
+            if ($mult[$k][0]->bcmp($target->[0]) == 0
+             && $mult[$k][1]->bcmp($target->[1]) == 0) {
+                $found = $k;
+                last;
+            }
+        }
+        if (defined $found) {
+            printf "%-50s COMPROMISED  private scalar = %d\n", $label, $found;
+        } else {
+            printf "%-50s no small scalar <= 255\n", $label;
+        }
     }
 }
