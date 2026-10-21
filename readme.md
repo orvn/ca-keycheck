@@ -43,6 +43,19 @@ From `samples/chains`, the chains served by the disclosure's test hosts:
 
 The Sectigo cross-signs (`*-aaa-*`) have the same keys and give the same results. The emSign Root TLS CA - G3 and the test hosts' P-256 leaf keys are not affected. The disclosure lists eight intermediates, and the other two aren't in these samples.
 
+
+### Proof of possession
+
+`prove.pl` reproduces the disclosure's proof (in reverse). For each compromised cert in a file, it: 
+- Rebuilds the private key from the recovered scalar
+- Confirms the key's public point matches the certificate
+- Signs a message
+- Verifies that signature against the cert's own public key
+
+```sh
+perl prove.pl samples/chains/ov-g3c-emudhra.we-have-a-problem.com.pem
+```
+
 ### Commit messages
 
 Commits must use a conventional prefix, `.githooks/` rejects anything else.
