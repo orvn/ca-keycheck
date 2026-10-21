@@ -13,7 +13,6 @@ Thumbs.db
 .auth/
 .keys/
 .ssh/
-*.pem
 *.key
 *.crt
 .pypirc
