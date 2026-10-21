@@ -67,8 +67,7 @@ sub on_curve {
 # returns [x, y] BigInts from the 0x04 || X || Y encoding (97 bytes for P-384)
 sub point_from_cert {
     my ($pem) = @_;
-    my $txt = qx(openssl x509 -in "$pem" -noout -pubkey 2>/dev/null
-                 | openssl pkey -pubin -text -noout 2>/dev/null);
+    my $txt = qx(openssl x509 -in "$pem" -noout -pubkey 2>/dev/null | openssl pkey -pubin -text -noout 2>/dev/null);
     die "openssl could not read $pem\n" unless $txt;
 
     # scrape the hex bytes under the "pub:" block
@@ -118,7 +117,11 @@ unless (@ARGV) {
 }
 
 for my $pem (@ARGV) {
-    my $target = point_from_cert($pem);
+    my $target = eval { point_from_cert($pem) };
+    unless ($target) {
+        warn "skipping: $@";
+        next;
+    }
     my $found;
     for my $k (1 .. 255) {
         if ($mult[$k][0]->bcmp($target->[0]) == 0
