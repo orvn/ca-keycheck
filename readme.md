@@ -6,8 +6,7 @@ Checks and experiments with the of the [eMudhra intermediate CA key compromise](
 
 The disclosure says the private keys of eight eMudhra P-384 intermediates were generated incorrectly and can be recovered from the certificates alone. `check.pl` confirms this from public data: it computes `k*G` on P-384 for every `k` from 1 to 255 and compares each result to a certificate's public key. A match means the private key is `k`
 
-It only reads public keys, and it never signs anything or writes key material
-
+![small scalars](./assets/images/small-scalars.png)
 
 ### Reqs
 
@@ -17,20 +16,21 @@ It only reads public keys, and it never signs anything or writes key material
 
 ### Usage
 
+After cloning this repo:
+
 ```sh
 perl check.pl samples/chains/*.pem
 ```
 
-Every certificate in each file is checked, so full chains work. P-384 and P-256 keys are supported, with the curve read from each certificate. Other keys (RSA, other curves) are skipped, and files that can't be read or contain no certificates print a warning and the run continues
-
-For each match, the full private key is printed as bytes. Output is colored when `Color.pm` sits next to `check.pl` and stdout is a terminal (set `NO_COLOR` to turn it off). Without `Color.pm`, `check.pl` runs on its own with plain output
-
-On every run, a selftest first confirms that `G` and all of `1*G..255*G` lie on each curve.
+- Every certificate in each file is checked
+- P-384 and P-256 keys are supported, with the curve read from each certificate
+- Other keys (RSA, other curves) are skipped
+- On every run, a selftest first confirms that `G` and all of `1*G..255*G` lie on each curve
 
 
 ### Results
 
-From `samples/chains/`, the chains served by the disclosure's test hosts:
+From `samples/chains`, the chains served by the disclosure's test hosts:
 
 | Intermediate | Private scalar |
 |---|---|
@@ -41,17 +41,10 @@ From `samples/chains/`, the chains served by the disclosure's test hosts:
 | EM OV TLS CA - G3B | 155 |
 | EM OV TLS CA - G3C | 4 |
 
-The Sectigo cross-signs (`*-aaa-*`) have the same keys and give the same results. The emSign Root TLS CA - G3 and the test hosts' P-256 leaf keys are not affected. The disclosure lists eight intermediates, and the other two aren't in these samples
-
-
-### Samples
-
-`samples/chains/` is the disclosure's `chains.zip`, extracted unmodified, downloaded on 2026-10-20. See `samples/chains/README.txt` for the file layout and for how to test a trust store with `openssl verify`
-
+The Sectigo cross-signs (`*-aaa-*`) have the same keys and give the same results. The emSign Root TLS CA - G3 and the test hosts' P-256 leaf keys are not affected. The disclosure lists eight intermediates, and the other two aren't in these samples.
 
 ### Commit messages
 
 Commits must use a conventional prefix, `.githooks/` rejects anything else.
 
 Allowed types: `feat`, `fix`, `hotfix`, `refactor`, `style`, `chore`, `cleanup`, `perf`, `test`, `docs`, `content`
-
