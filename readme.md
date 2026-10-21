@@ -21,9 +21,9 @@ It only reads public keys, and it never signs anything or writes key material
 perl check.pl samples/chains/*.pem
 ```
 
-Every certificate in each file is checked, so full chains work. Certificates that aren't P-384 (the leaves are P-256) are skipped, and files that can't be read or contain no certificates print a warning and the run continues
+Every certificate in each file is checked, so full chains work. P-384 and P-256 keys are supported, with the curve read from each certificate. Other keys (RSA, other curves) are skipped, and files that can't be read or contain no certificates print a warning and the run continues
 
-On every run, a selftest first confirms that `G` and all of `1*G..255*G` lie on the curve.
+On every run, a selftest first confirms that `G` and all of `1*G..255*G` lie on each curve.
 
 
 ### Results
@@ -39,7 +39,7 @@ From `samples/chains/`, the chains served by the disclosure's test hosts:
 | EM OV TLS CA - G3B | 155 |
 | EM OV TLS CA - G3C | 4 |
 
-The Sectigo cross-signs (`*-aaa-*`) have the same keys and give the same results. The emSign Root TLS CA - G3 is not affected. The disclosure lists eight intermediates, and the other two aren't in these samples
+The Sectigo cross-signs (`*-aaa-*`) have the same keys and give the same results. The emSign Root TLS CA - G3 and the test hosts' P-256 leaf keys are not affected. The disclosure lists eight intermediates, and the other two aren't in these samples
 
 
 ### Samples
