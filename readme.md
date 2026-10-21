@@ -23,6 +23,8 @@ perl check.pl samples/chains/*.pem
 
 Every certificate in each file is checked, so full chains work. P-384 and P-256 keys are supported, with the curve read from each certificate. Other keys (RSA, other curves) are skipped, and files that can't be read or contain no certificates print a warning and the run continues
 
+For each match, the full private key is printed as bytes. Output is colored when `Color.pm` sits next to `check.pl` and stdout is a terminal (set `NO_COLOR` to turn it off). Without `Color.pm`, `check.pl` runs on its own with plain output
+
 On every run, a selftest first confirms that `G` and all of `1*G..255*G` lie on each curve.
 
 
