@@ -92,8 +92,8 @@ die "rebuilt key does not match the certificate's public key\n"
 # make a leaf CSR for forged.example, then sign it with the rebuilt CA key
 my $host = 'forged.example';
 write_file("$dir/leaf.key", qx(openssl ecparam -name $cv->{ec} -genkey 2>/dev/null)); # fresh throwaway leaf key
-qx(openssl req -new -key "$dir/leaf.key" -subj "/CN=$host" -out "$dir/leaf.csr" 2>/dev/null) == 0
-    or die "openssl req failed\n";
+my @req = ('openssl','req','-new','-key',"$dir/leaf.key","-subj","/CN=$host","-out","$dir/leaf.csr");
+system(@req) == 0 or die "openssl req failed\n";
 write_file("$dir/leaf.ext", "subjectAltName=DNS:$host\n");
 
 my @sign = (qw(openssl x509 -req), "-in", "$dir/leaf.csr",
